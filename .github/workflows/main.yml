@@ -1,0 +1,42 @@
+name: Generate Dependency Tree
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Branch to checkout'
+        required: true
+        default: 'main'
+
+jobs:
+  generate-deps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.target_branch }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17' # Or your required version
+
+      - name: Grant execute permission to Gradle wrapper
+        run: chmod +x ./gradlew
+
+      - name: Generate Dependency Tree
+        run: ./gradlew dependencies
+
+      - name: Upload Dependency Tree Output (optional)
+        run: |
+          ./gradlew dependencies > dependency-tree.txt
+        continue-on-error: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-tree
+          path: dependency-tree.txt
