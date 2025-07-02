@@ -31,6 +31,7 @@ jobs:
         run: |
           # Extract distribution URL from wrapper properties
           DIST_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2)
+          DIST_URL_RAW=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2)
           echo "Distribution URL: $DIST_URL"
           
           # Clean the URL
@@ -78,7 +79,7 @@ jobs:
           }
 
           # Create directory hash (same way Gradle wrapper does)
-          DIR_HASH=$(echo -n "${DIST_URL}" | sha256sum | cut -d ' ' -f 1)
+          DIR_HASH=$(echo -n "$DIST_URL_RAW" | sha256sum | cut -d ' ' -f 1)
           echo "${DIR_HASH}"
           DEST_DIR="${GRADLE_HOME}/${DIR_HASH}/gradle-${GRADLE_VERSION}"
           mkdir -p "${DEST_DIR}"
