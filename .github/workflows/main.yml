@@ -22,69 +22,51 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11' # Or lower if you're on an old Gradle version
+          java-version: '11'
 
       - name: Grant execute permission to Gradle wrapper
         run: chmod +x ./gradlew
-      
-      - name: Grant execute permission to Gradle wrapper
+
+      - name: Pre-download and unpack Gradle distribution manually
         run: |
           # Extract distribution URL from wrapper properties
-          DIST_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2)
+          DIST_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2 | sed 's/\\//g')
           echo "Distribution URL: $DIST_URL"
-          
-          # Clean the URL
-          DIST_URL=$(echo "$DIST_URL" | sed 's/\\//g')
-          
-          # Extract file name from URL
+
+          # Extract file name and version
           GRADLE_ZIP_NAME=$(basename "$DIST_URL")
           echo "Gradle ZIP: $GRADLE_ZIP_NAME"
-          
-          # Extract version from zip name
+
           GRADLE_VERSION=$(echo "$GRADLE_ZIP_NAME" | sed -E 's/gradle-([0-9]+\.[0-9]+(\.[0-9]+)?)-(bin|all)\.zip/\1/')
-          echo "Gradle Version: $GRADLE_VERSION"
-          
-          # Extract dist type
           DIST_TYPE=$(echo "$GRADLE_ZIP_NAME" | sed -E 's/gradle-[0-9]+\.[0-9]+(\.[0-9]+)?-(bin|all)\.zip/\2/')
+          echo "Gradle Version: $GRADLE_VERSION"
           echo "Dist Type: $DIST_TYPE"
-          
-          # Create Gradle home directory if it doesn't exist
-          GRADLE_HOME="${HOME}/.gradle/wrapper/dists/gradle-${GRADLE_VERSION}-${DIST_TYPE}"
-          mkdir -p "${GRADLE_HOME}"
-          
-          # Try corporate download first
-          echo "Attempting download from corporate repository..."
-          curl -k -L --silent --show-error --fail --max-time 30 "$DIST_URL" -o "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" || DOWNLOAD_FAILED=true
-          
-          # If corporate download fails, fallback to public Gradle repository
-          if [ "$DOWNLOAD_FAILED" = true ] || [ ! -s "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" ]; then
-            echo "Corporate download failed or returned empty file, trying public Gradle repository..."
-            PUBLIC_URL="https://services.gradle.org/distributions/${GRADLE_ZIP_NAME}"
-            echo "Downloading from $PUBLIC_URL"
-            curl -L --silent --show-error --fail "$PUBLIC_URL" -o "${GRADLE_HOME}/${GRADLE_ZIP_NAME}"
+
+          # Create download path
+          GRADLE_BASE="${HOME}/.gradle/wrapper/dists/gradle-${GRADLE_VERSION}-${DIST_TYPE}"
+          DIR_HASH=$(echo -n "$DIST_URL" | sha256sum | cut -d ' ' -f 1)
+          TARGET_DIR="${GRADLE_BASE}/${DIR_HASH}/gradle-${GRADLE_VERSION}"
+          mkdir -p "$TARGET_DIR"
+
+          # Download the zip
+          echo "Attempting corporate download..."
+          curl -k -L --silent --show-error --fail --max-time 30 "$DIST_URL" -o gradle.zip || DOWNLOAD_FAILED=true
+
+          if [ "$DOWNLOAD_FAILED" = true ] || [ ! -s gradle.zip ]; then
+            echo "Corporate download failed, trying public Gradle repo..."
+            curl -L --silent --show-error --fail "https://services.gradle.org/distributions/${GRADLE_ZIP_NAME}" -o gradle.zip
           fi
-          
-          # Verify download was successful
-          if [ ! -s "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" ]; then
-            echo "Failed to download Gradle from public repository too"
-            exit 1
-          fi
-          
-          # Verify the zip file
-          echo "Verifying downloaded zip file..."
-          unzip -t "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" > /dev/null || {
+
+          # Verify zip
+          unzip -t gradle.zip > /dev/null || {
             echo "Downloaded file is not a valid zip archive"
             exit 1
           }
-      
-          # Create directory hash (same way Gradle wrapper does)
-          DIR_HASH=$(echo -n "${DIST_URL}" | sha256sum | cut -d ' ' -f 1)
-          echo "${DIR_HASH}"
-          mkdir -p "${GRADLE_HOME}/gradle-${GRADLE_VERSION}-${DIST_TYPE}/${DIR_HASH}"
-      
-          # Unzip Gradle distribution
-          unzip -q "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" -d "${GRADLE_HOME}/gradle-${VERSION}-${DIST_TYPE}/${DIR_HASH}"
-          mv "${GRADLE_HOME}/gradle-${VERSION}-${DIST_TYPE}/${DIR_HASH}/gradle-${GRADLE_VERSION}"* "${GRADLE_HOME}/gradle-${VERSION}-${DIST_TYPE}/${DIR_HASH}/gradle-${GRADLE_VERSION}"
+
+          # Extract only the contents inside gradle-${GRADLE_VERSION}/ to correct location
+          unzip -q gradle.zip
+          mv "gradle-${GRADLE_VERSION}"/* "$TARGET_DIR/"
+          rm -rf "gradle-${GRADLE_VERSION}" gradle.zip
 
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
@@ -97,7 +79,7 @@ jobs:
               echo "===== Dependency Tree for $dir =====" >> "$OLDPWD/dependency-tree.txt"
               ./gradlew dependencies --no-daemon --stacktrace --quiet --no-validate-url 2>&1 \
               | tee -a "$OLDPWD/dependency-tree-debug.log" \
-              | grep -E "^[\\+|\\-]+" >> "$OLDPWD/dependency-tree.txt"
+              | grep -E "^[\\+|\\|\\-\\]" >> "$OLDPWD/dependency-tree.txt"
               echo "" >> "$OLDPWD/dependency-tree.txt"
             ) || echo "Failed to process $dir, skipping..." >> "$OLDPWD/dependency-tree.txt"
           done
