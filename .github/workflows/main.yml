@@ -79,6 +79,7 @@ jobs:
       
           # Create directory hash (same way Gradle wrapper does)
           DIR_HASH=$(echo -n "${DIST_URL}" | sha256sum | cut -d ' ' -f 1)
+          echo "${DIR_HASH}"
           mkdir -p "${GRADLE_HOME}/gradle-${GRADLE_VERSION}-${DIST_TYPE}/${DIR_HASH}"
       
           # Unzip Gradle distribution
