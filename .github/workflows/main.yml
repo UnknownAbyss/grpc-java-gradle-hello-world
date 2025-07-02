@@ -83,7 +83,8 @@ jobs:
           mkdir -p "${GRADLE_HOME}/gradle-${GRADLE_VERSION}-${DIST_TYPE}/${DIR_HASH}"
       
           # Unzip Gradle distribution
-          unzip -q "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" -d "${GRADLE_HOME}/gradle-${GRADLE_VERSION}-${DIST_TYPE}/${DIR_HASH}"
+          unzip -q "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" -d "${GRADLE_HOME}/gradle-${VERSION}-${DIST_TYPE}/${DIR_HASH}"
+          mv "${GRADLE_HOME}/gradle-${VERSION}-${DIST_TYPE}/${DIR_HASH}/gradle-${GRADLE_VERSION}"* "${GRADLE_HOME}/gradle-${VERSION}-${DIST_TYPE}/${DIR_HASH}/gradle-${GRADLE_VERSION}"
 
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
