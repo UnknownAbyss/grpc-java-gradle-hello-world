@@ -86,17 +86,18 @@ jobs:
 
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
-          echo "" > full-dependency-tree.txt
+          echo "" > dependency-tree.txt
           find . -name "build.gradle*" | while read build_file; do
             dir=$(dirname "$build_file")
-            echo "📦 Processing $dir"
+            echo "Processing $dir"
             (
               cd "$dir"
-              echo "=== Dependency Tree for $dir ===" >> "$OLDPWD/full-dependency-tree.txt"
-              ./gradlew dependencies --no-daemon --stacktrace --quiet 2>/dev/null \
-              | grep -E '^[|\\+]' >> "$OLDPWD/full-dependency-tree.txt"
-              echo "" >> "$OLDPWD/full-dependency-tree.txt"
-            ) || echo "⚠️ Failed to process $dir, skipping..." >> "$OLDPWD/full-dependency-tree.txt"
+              echo "===== Dependency Tree for $dir =====" >> "$OLDPWD/dependency-tree.txt"
+              ./gradlew dependencies --no-daemon --stacktrace --quiet --no-validate-url 2>&1 \
+              | tee -a "$OLDPWD/dependency-tree-debug.log" \
+              | grep -E "^[\\+|\\-]+" >> "$OLDPWD/dependency-tree.txt"
+              echo "" >> "$OLDPWD/dependency-tree.txt"
+            ) || echo "Failed to process $dir, skipping..." >> "$OLDPWD/dependency-tree.txt"
           done
 
       - name: Upload dependency tree artifact
