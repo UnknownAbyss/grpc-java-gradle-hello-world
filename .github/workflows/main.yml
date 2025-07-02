@@ -104,4 +104,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dependency-tree
-          path: full-dependency-tree.txt
+          path: |
+            dependency-tree.txt
+            dependency-tree-debug.txt
