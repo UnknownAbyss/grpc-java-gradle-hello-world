@@ -79,7 +79,7 @@ jobs:
           }
 
           # Create directory hash (same way Gradle wrapper does)
-          DIR_HASH=$(echo -n "$DIST_URL_RAW" | sha256sum | cut -d ' ' -f 1)
+          DIR_HASH=$(echo -n "$DIST_URL_RAW" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '=' | cut -c1-20)
           echo "${DIR_HASH}"
           DEST_DIR="${GRADLE_HOME}/${DIR_HASH}/gradle-${GRADLE_VERSION}"
           mkdir -p "${DEST_DIR}"
