@@ -101,7 +101,7 @@ jobs:
           unzip -q "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" -d "${GRADLE_HOME}/unzipped-temp"
           mv "${GRADLE_HOME}/unzipped-temp/gradle-${GRADLE_VERSION}"/* "${DEST_DIR}/"
           rm -rf "${GRADLE_HOME}/unzipped-temp"
-          touch "$DEST_DIR/.ok"
+          touch "${GRADLE_HOME}/${DIR_HASH}/.ok"
 
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
