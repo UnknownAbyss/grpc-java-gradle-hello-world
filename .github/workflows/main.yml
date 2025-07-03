@@ -101,7 +101,8 @@ jobs:
           unzip -q "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" -d "${GRADLE_HOME}/unzipped-temp"
           mv "${GRADLE_HOME}/unzipped-temp/gradle-${GRADLE_VERSION}" "${GRADLE_HOME}/${DIR_HASH}/"
           rm -rf "${GRADLE_HOME}/unzipped-temp"
-          touch "${GRADLE_HOME}/${GRADLE_ZIP_NAME}.ok"
+          touch "${GRADLE_HOME}/${DIR_HASH}/${GRADLE_ZIP_NAME}.ok"
+          mv "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" "${GRADLE_HOME}/${DIR_HASH}/"
 
           sudo apt-get update && sudo apt-get install -y tree
           tree "${GRADLE_HOME}/${DIR_HASH}/"
