@@ -94,6 +94,10 @@ jobs:
           # Finalize
           echo "✅ Creating .ok marker: ${OK_PATH}"
           touch "$OK_PATH"
+
+          sudo apt-get update && sudo apt-get install -y tree
+          echo "📁 Final directory layout:"
+          tree "$HASH_DIR"
           
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
