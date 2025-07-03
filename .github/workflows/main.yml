@@ -29,84 +29,72 @@ jobs:
       
       - name: Pre-download Gradle distribution and unpack correctly
         run: |
-          # Extract distribution URL from wrapper properties
-          DIST_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2)
-          DIST_URL_RAW=$(grep "^distributionUrl=" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2-)
-          echo "Distribution URL: $DIST_URL"
-          
-          # Clean the URL
-          DIST_URL=$(echo "$DIST_URL" | sed 's/\\//g')
-          
-          # Extract file name from URL
-          GRADLE_ZIP_NAME=$(basename "$DIST_URL")
-          echo "Gradle ZIP: $GRADLE_ZIP_NAME"
-          
-          # Extract version from zip name
+          # Extract and clean distribution URL
+          DIST_URL=$(grep "^distributionUrl=" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2-)
+          DIST_URL_CLEAN=$(echo "$DIST_URL" | sed 's/\\//g')
+          echo "📦 Distribution URL: $DIST_URL_CLEAN"
+      
+          # Extract ZIP filename, version, and distribution type
+          GRADLE_ZIP_NAME=$(basename "$DIST_URL_CLEAN")
           GRADLE_VERSION=$(echo "$GRADLE_ZIP_NAME" | sed -E 's/gradle-([0-9]+\.[0-9]+(\.[0-9]+)?)-(bin|all)\.zip/\1/')
-          echo "Gradle Version: $GRADLE_VERSION"
-          
-          # Extract dist type
           DIST_TYPE=$(echo "$GRADLE_ZIP_NAME" | sed -E 's/gradle-[0-9]+\.[0-9]+(\.[0-9]+)?-(bin|all)\.zip/\2/')
-          echo "Dist Type: $DIST_TYPE"
-          
-          # Create Gradle home directory if it doesn't exist
+          echo "📌 Gradle ZIP: $GRADLE_ZIP_NAME"
+          echo "🔢 Gradle Version: $GRADLE_VERSION"
+          echo "🗃️ Dist Type: $DIST_TYPE"
+      
+          # Compute Gradle directory hash (MD5 + base36)
+          md5_hex=$(echo -n "$DIST_URL" | md5sum | awk '{print $1}')
+          DIR_HASH=$(python3 -c "
+          d = int('$md5_hex', 16)
+          c = '0123456789abcdefghijklmnopqrstuvwxyz'
+          b = ''
+          while d > 0:
+              d, r = divmod(d, 36)
+              b = c[r] + b
+          print(b)")
+          echo "🔐 Gradle directory hash: $DIR_HASH"
+      
+          # Set paths
           GRADLE_HOME="${HOME}/.gradle/wrapper/dists/gradle-${GRADLE_VERSION}-${DIST_TYPE}"
-          mkdir -p "${GRADLE_HOME}"
-          
-          # Try corporate download first
-          echo "Attempting download from corporate repository..."
-          curl -k -L --silent --show-error --fail --max-time 30 "$DIST_URL" -o "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" || DOWNLOAD_FAILED=true
-          
-          # If corporate download fails, fallback to public Gradle repository
-          if [ "$DOWNLOAD_FAILED" = true ] || [ ! -s "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" ]; then
-            echo "Corporate download failed or returned empty file, trying public Gradle repository..."
+          HASH_DIR="${GRADLE_HOME}/${DIR_HASH}"
+          ZIP_PATH="${HASH_DIR}/${GRADLE_ZIP_NAME}"
+          OK_PATH="${ZIP_PATH}.ok"
+          DEST_DIR="${HASH_DIR}/gradle-${GRADLE_VERSION}"
+      
+          mkdir -p "$HASH_DIR"
+      
+          # Download Gradle distribution
+          echo "🌐 Attempting corporate download..."
+          curl -k -L --silent --show-error --fail --max-time 30 "$DIST_URL_CLEAN" -o "$ZIP_PATH" || DOWNLOAD_FAILED=true
+      
+          if [ "$DOWNLOAD_FAILED" = true ] || [ ! -s "$ZIP_PATH" ]; then
+            echo "⚠️ Corporate download failed, trying public Gradle repo..."
             PUBLIC_URL="https://services.gradle.org/distributions/${GRADLE_ZIP_NAME}"
-            echo "Downloading from $PUBLIC_URL"
-            curl -L --silent --show-error --fail "$PUBLIC_URL" -o "${GRADLE_HOME}/${GRADLE_ZIP_NAME}"
+            echo "🔄 Downloading from $PUBLIC_URL"
+            curl -L --silent --show-error --fail "$PUBLIC_URL" -o "$ZIP_PATH"
           fi
-          
-          # Verify download was successful
-          if [ ! -s "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" ]; then
-            echo "Failed to download Gradle from public repository too"
+      
+          if [ ! -s "$ZIP_PATH" ]; then
+            echo "❌ Failed to download Gradle ZIP"
             exit 1
           fi
-          
-          # Verify the zip file
-          echo "Verifying downloaded zip file..."
-          unzip -t "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" > /dev/null || {
-            echo "Downloaded file is not a valid zip archive"
+      
+          echo "🧪 Verifying ZIP integrity..."
+          unzip -t "$ZIP_PATH" > /dev/null || {
+            echo "❌ ZIP file is corrupt or invalid"
             exit 1
           }
-
-          # Compute the MD5 digest as a hex string
-          md5_hex=$(echo -n "$DIST_URL" | md5sum | awk '{print $1}')
-          base36=$(python3 -c "
-          import sys
-          digest = int('$md5_hex', 16)
-          chars = '0123456789abcdefghijklmnopqrstuvwxyz'
-          base36 = ''
-          while digest > 0:
-              digest, r = divmod(digest, 36)
-              base36 = chars[r] + base36
-          print(base36)
-          ")
-          DIR_HASH="$base36"
-          
-          
-          echo "${DIR_HASH}"
-          DEST_DIR="${GRADLE_HOME}/${DIR_HASH}/gradle-${GRADLE_VERSION}"
-          mkdir -p "${DEST_DIR}"
-
-          # Unzip Gradle distribution into expected location
-          unzip -q "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" -d "${GRADLE_HOME}/unzipped-temp"
-          mv "${GRADLE_HOME}/unzipped-temp/gradle-${GRADLE_VERSION}" "${GRADLE_HOME}/${DIR_HASH}/"
+      
+          # Unpack and prepare structure
+          echo "📂 Unpacking Gradle to $DEST_DIR"
+          unzip -q "$ZIP_PATH" -d "${GRADLE_HOME}/unzipped-temp"
+          mv "${GRADLE_HOME}/unzipped-temp/gradle-${GRADLE_VERSION}" "$HASH_DIR/"
           rm -rf "${GRADLE_HOME}/unzipped-temp"
-          touch "${GRADLE_HOME}/${DIR_HASH}/${GRADLE_ZIP_NAME}.ok"
-          mv "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" "${GRADLE_HOME}/${DIR_HASH}/"
-
-          sudo apt-get update && sudo apt-get install -y tree
-          tree "${GRADLE_HOME}/${DIR_HASH}/"
-
+      
+          # Finalize
+          echo "✅ Creating .ok marker: ${OK_PATH}"
+          touch "$OK_PATH"
+          
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
           echo "" > dependency-tree.txt
