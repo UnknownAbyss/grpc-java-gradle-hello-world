@@ -79,20 +79,17 @@ jobs:
           }
 
           # Compute the MD5 digest as a hex string
-          digest=$(echo -n "$DIST_URL_RAW" | md5sum | awk '{print $1}')
-          
-          # Convert hex to decimal (big integer)
-          num=$(echo "ibase=16; $(echo $digest | tr 'a-f' 'A-F')" | bc)
-          
-          # Convert decimal to base36
-          base36_chars=( {0..9} {a..z} )
-          base36=""
-          while [ "$num" -gt 0 ]; do
-              rem=$(( num % 36 ))
-              base36="${base36_chars[$rem]}$base36"
-              num=$(( num / 36 ))
-          done
-
+          md5_hex=$(echo -n "$DIST_URL_RAW" | md5sum | awk '{print $1}')
+          base36=$(python3 -c "
+          import sys
+          digest = int('$md5_hex', 16)
+          chars = '0123456789abcdefghijklmnopqrstuvwxyz'
+          base36 = ''
+          while digest > 0:
+              digest, r = divmod(digest, 36)
+              base36 = chars[r] + base36
+          print(base36)
+          ")
           DIR_HASH="$base36"
           
           
