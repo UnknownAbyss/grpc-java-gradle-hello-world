@@ -93,7 +93,7 @@ jobs:
               num=$(( num / 36 ))
           done
 
-          DIR_HASH = "$base36"
+          DIR_HASH="$base36"
           
           
           echo "${DIR_HASH}"
