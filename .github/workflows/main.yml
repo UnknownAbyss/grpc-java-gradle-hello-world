@@ -102,6 +102,9 @@ jobs:
           mv "${GRADLE_HOME}/unzipped-temp/gradle-${GRADLE_VERSION}"/* "${DEST_DIR}/"
           rm -rf "${GRADLE_HOME}/unzipped-temp"
 
+          sudo apt-get update && sudo apt-get install -y tree
+          tree "${GRADLE_HOME}/${DIR_HASH}/gradle-${GRADLE_VERSION}"
+
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
           echo "" > dependency-tree.txt
