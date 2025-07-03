@@ -99,9 +99,9 @@ jobs:
 
           # Unzip Gradle distribution into expected location
           unzip -q "${GRADLE_HOME}/${GRADLE_ZIP_NAME}" -d "${GRADLE_HOME}/unzipped-temp"
-          mv "${GRADLE_HOME}/unzipped-temp/gradle-${GRADLE_VERSION}"/* "${DEST_DIR}/"
+          mv "${GRADLE_HOME}/unzipped-temp/gradle-${GRADLE_VERSION}" "${GRADLE_HOME}/${DIR_HASH}/"
           rm -rf "${GRADLE_HOME}/unzipped-temp"
-          touch "${GRADLE_HOME}/${DIR_HASH}/.ok"
+          touch "${GRADLE_HOME}/${GRADLE_ZIP_NAME}.ok"
 
       - name: Generate Complete Dependency Tree from All Gradle Modules
         run: |
@@ -112,7 +112,7 @@ jobs:
             (
               cd "$dir"
               echo "===== Dependency Tree for $dir =====" >> "$OLDPWD/dependency-tree.txt"
-              ./gradlew dependencies --no-daemon --stacktrace --quiet --no-validate-url 2>&1 \
+              ./gradlew dependencies --no-daemon --stacktrace --quiet 2>&1 \
               | tee -a "$OLDPWD/dependency-tree-debug.log" \
               | grep -E "^[\\+|\\|\\-\\]" >> "$OLDPWD/dependency-tree.txt"
               echo "" >> "$OLDPWD/dependency-tree.txt"
