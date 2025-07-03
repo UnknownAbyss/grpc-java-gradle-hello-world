@@ -79,7 +79,7 @@ jobs:
           }
 
           # Compute the MD5 digest as a hex string
-          md5_hex=$(echo -n "$DIST_URL_RAW" | md5sum | awk '{print $1}')
+          md5_hex=$(echo -n "$DIST_URL" | md5sum | awk '{print $1}')
           base36=$(python3 -c "
           import sys
           digest = int('$md5_hex', 16)
