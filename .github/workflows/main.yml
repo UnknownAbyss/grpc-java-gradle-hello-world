@@ -30,8 +30,8 @@ jobs:
       - name: Pre-download Gradle distribution and unpack correctly
         run: |
           # Extract and clean distribution URL
-          DIST_URL=$(grep "^distributionUrl=" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2-)
-          DIST_URL_CLEAN=$(echo "$DIST_URL" | sed 's/\\//g')
+          DIST_URL=$(grep "^distributionUrl=" gradle/wrapper/gradle-wrapper.properties | cut -d= -f2- | sed 's/\\//g')
+          DIST_URL_CLEAN=$"$DIST_URL"
           echo "📦 Distribution URL: $DIST_URL_CLEAN"
       
           # Extract ZIP filename, version, and distribution type
